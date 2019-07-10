@@ -4,6 +4,10 @@ sudo: false
 python:
     - "3.6"
 
+branches:
+    except:
+        - /^feature\//
+
 install:
     # Install shakemap and requirements
     - bash install.sh
