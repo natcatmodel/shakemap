@@ -249,6 +249,8 @@ def write_event_file(event, xmlfile):
             root.attrib['reference'] = event['reference']
         if 'productcode' in event:
             root.attrib['productcode'] = event['productcode']
+        if 'display_mag' in event:
+            root.attrib['displaymag'] = '%.1f' % event['display_mag']
         if 'event_type' in event:
             if event['event_type'] not in ['ACTUAL', 'SCENARIO']:
                 raise AttributeError(
@@ -402,6 +404,9 @@ def read_event_file(eventxml):
     eqdict['depth'] = float(xmldict['depth'])
     eqdict['mag'] = float(xmldict['mag'])
     eqdict['locstring'] = xmldict['locstring']
+
+    if 'displaymag' in xmldict:
+        eqdict['display_mag'] = float(xmldict['displaymag'])
 
     if 'mech' in xmldict:
         eqdict['mech'] = xmldict['mech']

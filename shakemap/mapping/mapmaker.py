@@ -826,7 +826,7 @@ def _get_shaded(ptopo, contour_colormap):
     return draped_hsv
 
 
-def _draw_title(imt, adict):
+def _draw_title(imt, adict, origin=None):
     """Draw the map title.
     Args:
         imt (str): IMT that is being drawn on the map ('MMI', 'PGV',
@@ -847,7 +847,10 @@ def _draw_title(imt, adict):
         etime = datetime.strptime(edict['origin_time'],
                                   constants.ALT_TIMEFMT)
     timestr = etime.strftime(tdict['title_parts']['date_format'])
-    mag = float(edict['magnitude'])
+    try:
+        mag = float(origin.display_mag)
+    except AttributeError:
+        mag = float(edict['magnitude'])
     if hlon < 0:
         lonstr = '%s%.2f' % (tdict['title_parts']['west'], np.abs(hlon))
     else:
@@ -1328,7 +1331,7 @@ def draw_map(adict, override_scenario=False):
     stations = adict['stationdict']
     _draw_stations(ax, stations, imtype, mmimap, geoproj)
 
-    _draw_title(imtype, adict)
+    _draw_title(imtype, adict, origin)
 
     process_time = info['processing']['shakemap_versions']['process_time']
     map_version = int(info['processing']['shakemap_versions']['map_version'])
