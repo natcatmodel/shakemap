@@ -6,12 +6,14 @@ if [ "$unamestr" == 'Linux' ]; then
     mini_conda_url=https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
     matplotlibdir=~/.config/matplotlib
     CC=gcc_linux-64
+    CXX=gxx_linux-64
 elif [ "$unamestr" == 'FreeBSD' ] || [ "$unamestr" == 'Darwin' ]; then
     prof=~/.bash_profile
     mini_conda_url=https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh
     matplotlibdir=~/.matplotlib
     #    CC=clangxx_osx-64
     CC=gcc
+    CXX=gxx
 else
     echo "Unsupported environment. Exiting."
     exit
@@ -136,17 +138,21 @@ package_list=(
       "configobj"
       "fiona"
       "$CC"
+      "$CXX"
       "gdal"
       "h5py"
+      "imageio"
       "impactutils=0.8.15"
       "libcomcat=1.2.13"
       "lockfile"
       "mapio=0.7.21"
       "matplotlib<=2.3"
+      "networkx"
       "numpy"
       "obspy"
       "openquake.engine"
       "pandas"
+      "pillow"
       "ps2ff"
       "psutil"
       "pyproj"
@@ -155,7 +161,7 @@ package_list=(
       "python-daemon"
       "pytest-faulthandler"
       "pytest-azurepipelines"
-      "scikit-image"
+      "pywavelets"
       "scipy"
       "shapely"
       "simplekml"
@@ -205,6 +211,8 @@ fi
 if [ $developer == 1 ]; then
     pip install sphinx-argparse
 fi
+
+pip install git+https://github.com/acarapetis/scikit-image.git@contours-nodata-option
 
 # This package
 echo "Installing ${VENV}..."
