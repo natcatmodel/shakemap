@@ -55,7 +55,7 @@ class ShapeModule(CoreModule):
             prog=self.__class__.command_name,
             description=inspect.getdoc(self.__class__))
         parser.add_argument('-m', '--method', type=str,
-                            help='Contouring method to use. Should be either pcontour or marching_squares.')
+                            help='Contouring method to use. Should be either pcontour or skimage.')
         parser.add_argument('rem', nargs=argparse.REMAINDER,
                             help=argparse.SUPPRESS)
         args = parser.parse_args(arglist)
@@ -141,7 +141,7 @@ def create_polygons(container, datadir, logger, max_workers, method='pcontour'):
                                              ('GRID_CODE', 'int:12'),
                                              ('PARAMVALUE', 'float:14.4')]),
                   'geometry': 'Polygon'}
-    elif method == 'marching_squares':
+    elif method == 'skimage':
         schema = {'properties': OrderedDict([('value', 'float:2.1'),
                                              ('units', 'str'),
                                              ('color', 'str'),
@@ -230,9 +230,6 @@ def create_polygons(container, datadir, logger, max_workers, method='pcontour'):
 
 
 def make_shape_files(adict, method='pcontour'):
-    if method not in ('pcontour', 'marching_squares'):
-        raise ValueError('Unknown contour method.')
-
     fgrid = adict['fgrid']
     dx = adict['dx']
     dy = adict['dy']
@@ -249,8 +246,10 @@ def make_shape_files(adict, method='pcontour'):
     if method == 'pcontour':
         gjson = pcontour(fgrid, dx, dy, xmin, ymax, contour_levels, 4, 0, fmt=1)
         features = gjson['features']
-    else:
+    elif method == 'skimage':
         features = contour(gdict, imtype, 10, gmice)
+    else:
+        raise ValueError('Unknown contour method.')
     with fiona.open(os.path.join(tdir, fname + '.shp'), 'w',
                     'ESRI Shapefile', schema) as c:
         for jobj in features:
