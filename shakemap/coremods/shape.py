@@ -5,10 +5,14 @@ import tempfile
 from shutil import copyfile
 import concurrent.futures as cf
 from collections import OrderedDict
+from functools import partial
+import argparse
+import inspect
 
 # third party imports
 import fiona
 from impactutils.io.smcontainers import ShakeMapOutputContainer
+from openquake.hazardlib import imt as IMT
 import numpy as np
 from configobj import ConfigObj
 
@@ -19,6 +23,8 @@ from shakemap.utils.config import (get_data_path,
                                    get_configspec,
                                    get_custom_validator,
                                    config_error)
+from shakemap.utils.utils import get_object_from_config
+from shakelib.plotting.contour import contour
 from shakemap.c.pcontour import pcontour
 from shakelib.utils.imt_string import oq_to_file
 
@@ -32,12 +38,30 @@ class ShapeModule(CoreModule):
     targets = [r'products/shape\.zip']
     dependencies = [('products/shake_result.hdf', True)]
 
+    method = 'wtf'
+
     def __init__(self, eventid):
         """
         Instantiate a ShapeModule class with an event ID.
         """
         super(ShapeModule, self).__init__(eventid)
         self.contents = Contents('GIS Shape Files', 'shape files', eventid)
+
+    def parseArgs(self, arglist):
+        """
+        Set up the object to accept the --method flag
+        """
+        parser = argparse.ArgumentParser(
+            prog=self.__class__.command_name,
+            description=inspect.getdoc(self.__class__))
+        parser.add_argument('-m', '--method', type=str,
+                            help='Contouring method to use. Should be either pcontour or marching_squares.')
+        parser.add_argument('rem', nargs=argparse.REMAINDER,
+                            help=argparse.SUPPRESS)
+        args = parser.parse_args(arglist)
+        if args.method:
+            self.method = args.method
+        return args.rem
 
     def execute(self):
         """
@@ -73,7 +97,8 @@ class ShapeModule(CoreModule):
 
         max_workers = config['products']['mapping']['max_workers']
 
-        create_polygons(container, datadir, self.logger, max_workers)
+        create_polygons(container, datadir, self.logger, max_workers,
+                        method=self.method)
 
         container.close()
 
@@ -82,7 +107,7 @@ class ShapeModule(CoreModule):
                               'shape.zip', 'application/zip')
 
 
-def create_polygons(container, datadir, logger, max_workers):
+def create_polygons(container, datadir, logger, max_workers, method='pcontour'):
     """ Generates a set of closed polygons (with or without holes) using
     the pcontour function, and uses fiona to convert the resulting GeoJSON
     objects into ESRI-style shape files which are then zipped into an
@@ -103,20 +128,41 @@ def create_polygons(container, datadir, logger, max_workers):
     component = list(container.getComponents())[0]
     imts = container.getIMTs(component)
 
-    schema = {'properties': OrderedDict([('AREA', 'float:13.3'),
-                                         ('PERIMETER', 'float:14.3'),
-                                         ('PGAPOL_', 'int:12'),
-                                         ('PGAPOL_ID', 'int:12'),
-                                         ('GRID_CODE', 'int:12'),
-                                         ('PARAMVALUE', 'float:14.4')]),
-              'geometry': 'Polygon'}
+    config = container.getConfig()
+    gmice = get_object_from_config('gmice', 'modeling', config)
+    gmice_imts = gmice.DEFINED_FOR_INTENSITY_MEASURE_TYPES
+    gmice_pers = gmice.DEFINED_FOR_SA_PERIODS
+
+    if method == 'pcontour':
+        schema = {'properties': OrderedDict([('AREA', 'float:13.3'),
+                                             ('PERIMETER', 'float:14.3'),
+                                             ('PGAPOL_', 'int:12'),
+                                             ('PGAPOL_ID', 'int:12'),
+                                             ('GRID_CODE', 'int:12'),
+                                             ('PARAMVALUE', 'float:14.4')]),
+                  'geometry': 'Polygon'}
+    elif method == 'marching_squares':
+        schema = {'properties': OrderedDict([('value', 'float:2.1'),
+                                             ('units', 'str'),
+                                             ('color', 'str'),
+                                             ('weight', 'float:13.3')]),
+                  'geometry': 'MultiLineString'}
+    else:
+        raise ValueError('Unknown contouring method')
 
     smdata = os.path.join(get_data_path(), 'gis')
     # Make a directory for the files to live in prior to being zipped
     alist = []
     with tempfile.TemporaryDirectory(dir=datadir) as tdir:
         for imt in imts:
+            oqimt = IMT.from_string(imt)
+            if imt == 'MMI' or not isinstance(oqimt, tuple(gmice_imts)) or \
+               (isinstance(oqimt, IMT.SA) and oqimt.period not in gmice_pers):
+                my_gmice = None
+            else:
+                my_gmice = gmice
             gdict = container.getIMTGrids(imt, component)
+
             fgrid = gdict['mean']
             if imt == 'MMI':
                 contour_levels = np.arange(0.1, 10.2, 0.2)
@@ -143,7 +189,10 @@ def create_polygons(container, datadir, logger, max_workers):
                  'contour_levels': contour_levels,
                  'tdir': tdir,
                  'fname': fname,
-                 'schema': schema}
+                 'schema': schema,
+                 'imtype': imt,
+                 'gdict': gdict,
+                 'gmice': my_gmice}
             alist.append(a)
             copyfile(os.path.join(smdata, 'WGS1984.prj'),
                      os.path.join(tdir, fname + '.prj'))
@@ -158,13 +207,15 @@ def create_polygons(container, datadir, logger, max_workers):
             else:
                 copyfile(xmlfile, os.path.join(tdir, fname + '.shp.xml'))
 
+        worker = partial(make_shape_files, method=method)
+
         if max_workers > 0:
             with cf.ProcessPoolExecutor(max_workers=max_workers) as ex:
-                results = ex.map(make_shape_files, alist)
+                results = ex.map(worker, alist)
                 list(results)
         else:
             for adict in alist:
-                make_shape_files(adict)
+                worker(adict)
 
         zfilename = os.path.join(datadir, 'shape.zip')
         zfile = zipfile.ZipFile(zfilename, mode='w',
@@ -178,7 +229,10 @@ def create_polygons(container, datadir, logger, max_workers):
         zfile.close()
 
 
-def make_shape_files(adict):
+def make_shape_files(adict, method='pcontour'):
+    if method not in ('pcontour', 'marching_squares'):
+        raise ValueError('Unknown contour method.')
+
     fgrid = adict['fgrid']
     dx = adict['dx']
     dy = adict['dy']
@@ -188,9 +242,16 @@ def make_shape_files(adict):
     tdir = adict['tdir']
     fname = adict['fname']
     schema = adict['schema']
+    gdict = adict['gdict']
+    imtype = adict['imtype']
+    gmice = adict['gmice']
 
-    gjson = pcontour(fgrid, dx, dy, xmin, ymax, contour_levels, 4, 0, fmt=1)
+    if method == 'pcontour':
+        gjson = pcontour(fgrid, dx, dy, xmin, ymax, contour_levels, 4, 0, fmt=1)
+        features = gjson['features']
+    else:
+        features = contour(gdict, imtype, 10, gmice)
     with fiona.open(os.path.join(tdir, fname + '.shp'), 'w',
                     'ESRI Shapefile', schema) as c:
-        for jobj in gjson['features']:
+        for jobj in features:
             c.write(jobj)
