@@ -38,7 +38,7 @@ class ShapeModule(CoreModule):
     targets = [r'products/shape\.zip']
     dependencies = [('products/shake_result.hdf', True)]
 
-    method = 'wtf'
+    method = 'pcontour'
 
     def __init__(self, eventid):
         """
