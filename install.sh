@@ -165,6 +165,7 @@ package_list=(
       "scipy"
       "shapely"
       "simplekml"
+      "scikit-image>=0.16.1"
       "strec=2.1.4"
       "versioneer"
       "vcrpy"
@@ -211,8 +212,6 @@ fi
 if [ $developer == 1 ]; then
     pip install sphinx-argparse
 fi
-
-pip install git+https://github.com/acarapetis/scikit-image.git@contours-nodata-option
 
 # This package
 echo "Installing ${VENV}..."
