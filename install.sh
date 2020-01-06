@@ -134,7 +134,7 @@ package_list=(
       "descartes"
       "docutils"
       "configobj"
-      "fiona"
+      "fiona==1.8.7"
       "$CC"
       "gdal"
       "h5py"
