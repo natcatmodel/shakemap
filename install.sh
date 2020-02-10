@@ -145,7 +145,7 @@ package_list=(
       "matplotlib<=2.3"
       "numpy"
       "obspy"
-      "openquake.engine"
+      "openquake.engine==3.2.0"
       "pandas"
       "ps2ff"
       "psutil"
