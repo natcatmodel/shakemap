@@ -883,6 +883,10 @@ def _draw_title(imt, adict, uncertainty=False):
     else:
         latstr = '%s%.2f' % (tdict['title_parts']['north'], hlat)
     dep = float(edict['depth'])
+    if bool(edict.get('fixed_depth', False)):
+        dep_marker = ' ' + tdict['title_parts']['fixed_depth_marker']
+    else:
+        dep_marker = ''
     eid = edict['event_id']
     if imt.startswith('SA('):
         period = imt.replace('SA(', '').replace(')', '')
@@ -891,10 +895,10 @@ def _draw_title(imt, adict, uncertainty=False):
         imtstr = tdict['IMTYPES'][imt]
     if len(eid) <= 10:
         fmt = ('%s %s\n%s %s: %s\n %s %s %s%.1f %s %s '
-               '%s: %.1f%s %s:%s')
+               '%s: %.1f%s%s %s:%s')
     else:
         fmt = ('%s %s\n%s %s: %s\n %s %s %s%.1f %s %s '
-               '%s: %.1f%s\n%s:%s')
+               '%s: %.1f%s%s\n%s:%s')
     tstr = fmt % (imtstr, adict['operator'],
                   "Uncertainty" if uncertainty else "",
                   tdict['title_parts']['shakemap'],
@@ -905,6 +909,7 @@ def _draw_title(imt, adict, uncertainty=False):
                   tdict['title_parts']['depth'],
                   dep,
                   tdict['title_parts']['depth_units'],
+                  dep_marker,
                   tdict['title_parts']['event_id'],
                   eid)
     plt.title(tstr, fontsize=10, verticalalignment='bottom')

@@ -102,6 +102,7 @@
         "shakemap": "ShakeMap",
         "depth": "Prof",
         "depth_units": "km",
+        "fixed_depth_marker": "(f)",
         "timezone": "UTC",
         "magnitude": "M",
         "event_id": "ID",

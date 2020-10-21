@@ -60,6 +60,7 @@ class MappingModule(CoreModule):
     configs = ['products.conf']
 
     display_magnitude = None
+    fixed_depth = False
 
     def __init__(self, eventid):
         super(MappingModule, self).__init__(eventid)
@@ -75,6 +76,8 @@ class MappingModule(CoreModule):
         parser.add_argument('-m', '--display-magnitude', type=float,
                             help='Override the magnitude displayed in '
                             'map labels.')
+        parser.add_argument('--fixed-depth', type=float,
+                            help='Mark depth as fixed in map labels.')
         #
         # This line should be in any modules that overrides this
         # one. It will collect up everything after the current
@@ -88,6 +91,8 @@ class MappingModule(CoreModule):
         args = parser.parse_args(arglist)
         if args.display_magnitude:
             self.display_magnitude = args.display_magnitude
+        if args.fixed_depth:
+            self.fixed_depth = args.fixed_depth
         return args.rem
 
     def execute(self):
@@ -312,6 +317,7 @@ class MappingModule(CoreModule):
                  'img_dpi': config['products']['mapping']['img_dpi'],
                  'license_logo': llogo,
                  'license_text': ltext,
+                 'fixed_depth': self.fixed_depth,
                  }
             alist.append(d)
             if imtype == 'MMI':

@@ -98,6 +98,7 @@
         "shakemap": "地表振动图 (ShakeMap)",
         "depth": "深度",
         "depth_units": "公里 (km)",
+        "fixed_depth_marker": "(f)",
         "timezone": "世界协调时间",
         "magnitude": "地震规模 (M)",
         "event_id": "编号",
