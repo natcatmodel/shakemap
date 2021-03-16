@@ -221,6 +221,7 @@ def write_event_file(event, xmlfile):
            - lat (float, 42.1234)
            - lon (float, -85.1234)
            - depth (float, 24.1)
+           - depth_fixed (bool, false)
            - mag (float, 7.9)
            - time (HistoricTime object)
            - locstring (str, "East of the Poconos")
@@ -256,6 +257,12 @@ def write_event_file(event, xmlfile):
             root.attrib['event_type'] = event['event_type']
         else:
             root.attrib['event_type'] = 'ACTUAL'
+        if 'depth_fixed' in event:
+            if not isinstance(event['depth_fixed'], bool):
+                raise AttributeError('depth_fixed must be a boolean')
+            root.attrib['depth_fixed'] = event['depth_fixed'] and "true" or "false"
+        else:
+            root.attrib['depth_fixed'] = "false"
 
         tree = etree.ElementTree(root)
         tree.write(xmlfile, pretty_print=True)
